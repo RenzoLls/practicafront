@@ -1,0 +1,33 @@
+body {
+    background:#fff8dc;
+    font-family: Arial, sans-serif;
+}
+
+.card {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.card-title {
+    font-weight: bold;
+}
+
+.card-text {
+    margin-bottom: 15px;
+}
+
+.btn-primary {
+    border-radius: 10px;
+}
+
+header h1 {
+    font-family: "Caveat", cursive;
+}
+
+footer {
+    font-family: "Titan One", sans-serif;
+}

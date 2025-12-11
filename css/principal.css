@@ -1,0 +1,326 @@
+/* Fondo general */
+body {
+    background-color: #fff8dc;
+    font-family: Arial;
+}
+
+.btn-light{
+  background: white;
+  color: black;
+}
+.btn-dark{
+  background: black;
+  color: white;
+}
+
+.rojito {
+    color: black;
+    text-decoration: underline;
+}
+
+.rojo {
+    color: red;
+    text-decoration: underline;
+}
+.card-text {
+  color: black;
+}
+.card-title {
+  color: black;
+}
+
+.preparar, .crema, .Montar, .refrigerar {
+    color: blue;
+}
+.texto-receta{
+  font-family: "Indie Flower", cursive;
+  font-style: normal;
+}
+.conocenos{
+  font-family: "Luckiest Guy",cursive;
+
+  font-style: normal;
+}
+.creador{
+  font-family: "Titan One", sans-serif;
+ font-style: normal;
+}
+.titlevideo {
+  font-family: "Permanent Marker", cursive;
+
+  font-style: normal;
+}
+.postres{
+  font-family: "Permanent Marker", cursive;
+
+  font-style: normal;
+}
+
+.casero {
+  font-size: 50px;
+  font-family: "Caveat", cursive;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+}
+
+.pagina, .contactos {
+  font-family: "Permanent Marker", cursive;
+
+font-style: normal;
+}
+
+/* HEADER */
+header {
+    position: relative;
+    background: #ffe9cc;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Imagen del tiramisú */
+header img {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 180px;
+    max-width: 30%;
+    height: auto;
+}
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        padding: 40px 10px;
+    }
+
+    header img {
+        position: relative;
+        width: 60%;
+        margin-bottom: 10px;
+        left: 0;
+        top: 0;
+    }
+
+    header h1 {
+        text-align: center;
+        font-size: 35px;
+    }
+}
+
+/* NAV */
+nav.similares {
+    background: #fff3db;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    flex-wrap: wrap;
+    height: auto;
+    font-family: "Luckiest Guy", cursive;
+  font-style: normal;
+}
+
+nav.similares a {
+    font-size: 20px;
+    color: #613a2b;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+/* LISTA DE RECETAS */
+.lista-recetas {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: center;
+}
+
+/* CONTENIDO PRINCIPAL */
+main.contenido {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 25px;
+    padding: 20px;
+}
+
+section.texto-receta {
+    width: 60%;
+}
+
+aside.lateral {
+    width: 30%;
+    background: #fffdf7;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+aside iframe {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* RESPONSIVO DEL MAIN */
+@media (max-width: 900px) {
+    main.contenido {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    section.texto-receta,
+    aside.lateral {
+        width: 95%;
+    }
+}
+
+
+/* ===================== CARRUSEL ===================== */
+.carrusel {
+    width: 80%;
+    margin: 30px auto;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.carrusel img {
+  height: 350px;
+  object-fit: cover;
+  margin: auto;
+  border-radius: 10px;
+}
+
+/* Hace visibles los botones del carrusel */
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    filter: invert(1);
+}
+
+/* ===================== CONTENEDOR DE CARDS ===================== */
+.contenedor-cards {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap; /* Para que en celular se acomoden */
+    margin-top: 25px;
+    font-family: "Luckiest Guy", cursive;
+
+    font-style: normal;
+}
+
+
+.card, .card2, .card3 {
+    width: 18rem !important;
+    border-radius: 15px;
+    overflow: hidden;
+    background: #fffdf7;
+    border: 2px solid #d9c7aa;
+    transition: transform .3s ease, box-shadow .3s ease;
+}
+
+/* Efecto pro jaja*/
+.card:hover,
+.card2:hover,
+.card3:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.card img, .card2 img, .card3 img {
+    height: 200px;
+    object-fit: cover;
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 768px) {
+
+    .carrusel img {
+        height: 250px;
+    }
+
+    .card, .card2, .card3 {
+        width: 90% !important;
+    }
+}
+
+
+/* BOTÓN MODO OSCURO (ojala ande) */
+.btn_oscuro {
+    background: black;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 15px;
+}
+
+
+
+/* WHATSAPP */
+.whatsapp-float {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 999 !important;
+}
+
+.whatsapp-float img {
+    width: 60px;
+    height: auto;
+    border-radius: 50%;
+}
+
+/* FOOTER */
+footer {
+    background: #ffecd1;
+    padding: 25px 10px;
+    margin-top: 40px;
+    text-align: center;
+}
+
+.Conocenos {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+.footer-contenedor {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.footer-item img {
+    border-radius: 10px;
+}
+
+.footer-item p {
+    margin-top: 10px;
+    font-size: 18px;
+}
+
+/* Mapa responsivo */
+.mapa-footer iframe {
+    border-radius: 10px;
+    width: 250px;
+    height: 170px;
+}
+
+/* RESPONSIVO FOOTER */
+@media (max-width: 600px) {
+    .footer-contenedor {
+        flex-direction: column;
+        gap: 25px;
+    }
+
+    .mapa-footer iframe {
+        width: 90%;
+        height: 200px;
+    }
+}
