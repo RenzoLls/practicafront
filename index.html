@@ -1,212 +1,261 @@
 <!DOCTYPE html>
-<html lang="es" dir="ltr">
+<html lang="es">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RECETA TIRAMISU</title>
+    <title>LSA PRO - Modo Ráfaga 🚀</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
 
+    <style>
+        :root { --celeste: #72c3e4; --celeste-oscuro: #3a96bd; --verde: #2ecc71; --rojo: #e74c3c; --gris: #bdc3c7; --naranja: #f39c12; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+        .sidebar { width: 350px; background: white; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: 4px 0 10px rgba(0,0,0,0.05); z-index: 10; }
+        .search-box { padding: 12px; border: 2px solid #eee; border-radius: 10px; width: 100%; box-sizing: border-box; outline: none; }
+        .vocab-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; background: #fdfdfd; }
+        .vocab-item { padding: 12px; margin: 5px; background: white; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; border: 1px solid #eee; transition: 0.2s; font-weight: 500; }
+        .vocab-item.active { background: var(--celeste); color: white; border-color: var(--celeste-oscuro); }
+        .vocab-item.trained::after { content: "✓"; color: var(--verde); font-weight: bold; }
 
-    <!-- Estilos -->
-    <link rel="stylesheet" href="./css/principal.css">
+        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .video-container { position: relative; background: #000; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        canvas { width: 100%; max-width: 720px; transform: scaleX(-1); display: block; }
+        video { display: none; }
+
+        .training-bar { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 720px; }
+        .btn-train { padding: 18px; border: none; border-radius: 50px; background: var(--verde); color: white; font-weight: bold; cursor: pointer; font-size: 1.1rem; transition: 0.3s; width: 100%; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); }
+        .btn-train.recording { background: var(--rojo) !important; animation: pulse 1s infinite; }
+        .btn-delete { padding: 10px; border: none; border-radius: 50px; background: var(--gris); color: white; font-weight: bold; cursor: pointer; font-size: 0.8rem; transition: 0.3s; }
+        .btn-delete:hover { background: var(--rojo); }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        #word-output { font-size: 3.5rem; font-weight: 900; color: var(--celeste-oscuro); height: 80px; text-transform: uppercase; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>LSA Holistic <span style="color: var(--naranja)">RÁFAGA</span></h2>
+        <input type="text" id="search-input" class="search-box" placeholder="🔍 Buscar palabra...">
+        <div class="vocab-list" id="vocab-list"></div>
+        <div style="display: flex; gap: 5px;">
+            <button onclick="guardarModelo()" style="flex:1; padding: 10px; border-radius: 8px; border:none; background:#34495e; color:white; cursor:pointer;">💾 Guardar</button>
+            <button onclick="cargarModelo()" style="flex:1; padding: 10px; border-radius: 8px; border:none; background:#34495e; color:white; cursor:pointer;">📂 Cargar</button>
+        </div>
+        <div id="status-box" style="font-size: 0.8rem; padding: 10px; background: #e8f4fd; border-radius: 8px; color: #2980b9;">Iniciando cámara...</div>
+        <input type="file" id="file-selector" style="display:none" onchange="importarArchivo(event)">
+    </div>
+
+    <div class="main-content">
+        <div id="word-output">ESPERANDO MANOS...</div>
+        <div class="video-container">
+            <canvas id="output_canvas"></canvas>
+            <video id="input_video"></video>
+        </div>
+        <div class="training-bar">
+            <button class="btn-train" id="train-btn" onclick="iniciarRafaga()">INICIAR GRABACIÓN (2 SEG)</button>
+            <button class="btn-delete" onclick="borrarPalabraActual()">BORRAR EJEMPLOS DE ESTA PALABRA</button>
+            <div style="text-align: center;">
+                <span id="example-count" style="font-size: 1.5rem; font-weight: bold; color: var(--verde);">0</span>
+                <div style="font-size: 0.7rem;">FRAMES CAPTURADOS</div>
+            </div>
+        </div>
+    </div>
 
     <script>
-      alert("¡Peligro! Te puede dar hambre, seguro quiere entrar?");
-      alert("Ahora si fuera de chiste, Bienvenido y disfrute!");
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const wordOutput = document.getElementById('word-output');
+        const vocabListUI = document.getElementById('vocab-list');
+        const searchInput = document.getElementById('search-input');
+        const trainBtn = document.getElementById('train-btn');
+        const statusBox = document.getElementById('status-box');
+
+        let classifier;
+        let selectedWord = null;
+        let resultsGlobal = null;
+        let framesEstables = 0;
+        let ultimaDeteccion = "";
+        let bloqueo = false;
+        let grabando = false;
+
+        const vocabulario = [
+            "REPOSO", "HOLA", "CHAU", "BUENOS DIAS", "GRACIAS", "POR FAVOR",
+            "PERDON", "SI", "NO", "BIEN", "MAL", "AYUDAR", "COMER", "QUERER",
+            "TENER", "IR", "TRABAJAR", "ESTUDIAR", "TOMAR", "CASA", "ESCUELA",
+            "AHORA", "TIEMPO", "HIJO", "FAMILIA", "HERMANO", "ABUELO", "AMIGO",
+            "MAMA", "PAPA", "ENTENDER", "NO ENTENDER", "SABER", "COMPRAR",
+            "BUSCAR", "ESPERAR", "FELIZ", "TRISTE", "ENOJADO", "GUSTAR", "VER", "HABLAR", "¿QUÉ?", "¿CÓMO?", "¿DÓNDE?", "¿POR QUÉ?", "¿QUIÉN?", "BAÑO", "MÉDICO", "HOSPITAL", "DINERO", "COMPRAR", "CELULAR", "CALLE", "COLECTIVO"
+            , "LLAVE", "ROPA", "DORMIR", "DESPERTAR", "LIMPIAR", "COCINAR", "LAVAR", "MIRAR TV", "SENTARSE", "DOLOR", "FIEBRE", "REMEDIO", "AMBULANCIA", "URGENTE", "CANSADO", "PAN", "LECHE", "CARNE", "FRUTA", "AGUA"
+            , "SILLA", "MESA", "DÍA", "NOCHE", "MAÑANA", "TARDE", "DÍAS", "SEMANA", "MES", "AÑO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO", "ROJO", "AZUL", "AMARILLO",
+            "VERDE", "BLANCO", "NEGRO", "COLORES", "BRILLANTE", "CLARO", "OSCURO", "SOL", "LUNA", "LLUVIA", "VIENTO", "CALOR", "FRÍO", "AIRE LIBRE", "ÁRBOL", "TIERRA", "GRANDE", "PEQUEÑO", "LINDO", "FEO",
+            "FEO", "NUEVO", "VIEJO", "DIFÍCIL", "FÁCIL", "IGUAL", "DIFERENTE"
+        ].sort();
+
+        function renderVocab(filter = "") {
+            vocabListUI.innerHTML = "";
+            vocabulario.filter(w => w.includes(filter.toUpperCase())).forEach(word => {
+                const div = document.createElement('div');
+                div.className = `vocab-item ${selectedWord === word ? 'active' : ''}`;
+                if(classifier && classifier.getClassExampleCount()[word] > 0) div.classList.add('trained');
+                div.innerText = word;
+                div.onclick = () => { selectedWord = word; renderVocab(filter); actualizarContador(); };
+                vocabListUI.appendChild(div);
+            });
+        }
+
+        function extractFeatures(results) {
+            let features = [];
+            if (results.poseLandmarks) { [11, 12, 13, 14, 15, 16].forEach(i => features.push(results.poseLandmarks[i].x, results.poseLandmarks[i].y)); }
+            else { features.push(...Array(12).fill(0)); }
+            if (results.faceLandmarks) { [0, 13, 14, 17, 61, 291].forEach(i => features.push(results.faceLandmarks[i].x, results.faceLandmarks[i].y)); }
+            else { features.push(...Array(12).fill(0)); }
+            [results.leftHandLandmarks, results.rightHandLandmarks].forEach(hand => {
+                if (hand) { hand.forEach(lm => features.push(lm.x, lm.y, lm.z)); }
+                else { features.push(...Array(63).fill(0)); }
+            });
+            return features;
+        }
+
+        async function iniciarRafaga() {
+            if (!selectedWord) { alert("Primero selecciona una palabra de la lista lateral."); return; }
+            if (grabando) return;
+
+            grabando = true;
+            trainBtn.classList.add('recording');
+            trainBtn.innerText = "🔴 GRABANDO SEÑA... ¡MOVETE!";
+
+            let conteo = 0;
+            const maxFrames = 50; // Grabamos 50 fotos en total
+
+            const intervalo = setInterval(() => {
+                if (resultsGlobal) {
+                    classifier.addExample(tf.tensor(extractFeatures(resultsGlobal)), selectedWord);
+                    conteo++;
+                    document.getElementById('example-count').innerText = classifier.getClassExampleCount()[selectedWord] || 0;
+                }
+
+                if (conteo >= maxFrames) {
+                    clearInterval(intervalo);
+                    grabando = false;
+                    trainBtn.classList.remove('recording');
+                    trainBtn.innerText = "GRABACIÓN COMPLETADA";
+                    setTimeout(() => { trainBtn.innerText = "INICIAR GRABACIÓN (2 SEG)"; }, 2000);
+                    renderVocab(searchInput.value);
+                }
+            }, 40); // Una foto cada 40 milisegundos (muy rápido y fluido)
+        }
+
+        async function onResults(results) {
+            resultsGlobal = results;
+            canvasElement.width = 720; canvasElement.height = 480;
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, 720, 480);
+            canvasCtx.drawImage(results.image, 0, 0, 720, 480);
+            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+            drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
+            drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
+            canvasCtx.restore();
+            if (!bloqueo && !grabando) predecir();
+        }
+
+        async function predecir() {
+            if (!resultsGlobal) return;
+            if (!resultsGlobal.leftHandLandmarks && !resultsGlobal.rightHandLandmarks) {
+                wordOutput.innerText = "ESPERANDO MANOS...";
+                wordOutput.style.color = "var(--gris)";
+                ultimaDeteccion = "REPOSO";
+                framesEstables = 0;
+                return;
+            }
+
+            if (classifier && classifier.getNumClasses() > 0) {
+                const result = await classifier.predictClass(tf.tensor(extractFeatures(resultsGlobal)));
+                if (result.confidences[result.label] > 0.98) {
+                    if (result.label === "REPOSO") {
+                        wordOutput.innerText = "ESPERANDO...";
+                        wordOutput.style.color = "var(--gris)";
+                        return;
+                    }
+                    if (result.label === ultimaDeteccion) { framesEstables++; }
+                    else { ultimaDeteccion = result.label; framesEstables = 0; }
+                    if (framesEstables === 20 && !bloqueo) ejecutarVoz(result.label);
+                }
+            }
+        }
+
+        function ejecutarVoz(palabra) {
+            bloqueo = true;
+            wordOutput.innerText = palabra;
+            wordOutput.style.color = "var(--verde)";
+            const msg = new SpeechSynthesisUtterance(palabra);
+            msg.lang = 'es-AR';
+            window.speechSynthesis.speak(msg);
+            setTimeout(() => {
+                bloqueo = false;
+                framesEstables = 0;
+                wordOutput.innerText = "ESPERANDO...";
+                wordOutput.style.color = "var(--gris)";
+            }, 1500);
+        }
+
+        function borrarPalabraActual() {
+            if (!selectedWord) return;
+            if (confirm(`¿Borrar ejemplos de "${selectedWord}"?`)) {
+                classifier.clearClass(selectedWord);
+                actualizarContador();
+                renderVocab(searchInput.value);
+            }
+        }
+
+        function actualizarContador() {
+            if(!selectedWord) return;
+            document.getElementById('example-count').innerText = classifier.getClassExampleCount()[selectedWord] || 0;
+        }
+
+        searchInput.oninput = (e) => renderVocab(e.target.value);
+
+        function guardarModelo() {
+            const dataset = classifier.getClassifierDataset();
+            const datasetObj = {};
+            Object.keys(dataset).forEach((key) => { datasetObj[key] = Array.from(dataset[key].dataSync()); });
+            const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `lsa_entrenamiento_${new Date().toLocaleDateString()}.json`;
+            a.click();
+        }
+
+        function cargarModelo() { document.getElementById('file-selector').click(); }
+
+        function importarArchivo(event) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const datasetObj = JSON.parse(e.target.result);
+                const tensorObj = {};
+                Object.keys(datasetObj).forEach((key) => {
+                    tensorObj[key] = tf.tensor2d(datasetObj[key], [datasetObj[key].length / 150, 150]);
+                });
+                classifier.setClassifierDataset(tensorObj);
+                statusBox.innerText = "Modelo cargado con éxito.";
+                renderVocab();
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+
+        const holistic = new Holistic({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}`});
+        holistic.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7});
+        holistic.onResults(onResults);
+
+        const camera = new Camera(videoElement, {onFrame: async () => { await holistic.send({image: videoElement}); }, width: 720, height: 480});
+        classifier = knnClassifier.create();
+        renderVocab();
+        camera.start().then(() => statusBox.innerText = "Sistema Activo (Modo Ráfaga)");
     </script>
-
-    <script src="./js/javascript.js">
-
-    </script>
-</head>
-
-<body style="background-color: #fff8dc; font-family: Arial;">
-
-<!-- ================= HEADER ================= -->
-<header class="d-flex align-items-center justify-content-center p-3" style="background:#ffe9cc; position:relative;">
-    <h1 class="casero" style="color:#0000ff; margin:0;">TIRAMISÚ CASERO</h1>
-
-    <button onclick="cambiar_a_claro()" class="btn-light">Claro</button>
-
-  <button onclick="cambiar_a_oscuro()" class="btn-dark">Oscuro</button>
-
-</header>
-
-<div class="carrusel">
-  <div id="carouselExample" class="carousel slide">
-  <div class="carousel-inner">
-    <div class="carousel-item active">
-      <img src="./imagenes/tiramisuu.jpg" width="300" class="d-block" alt="...">
-    </div>
-    <div class="carousel-item">
-      <img src="./imagenes/tiramimi.jpg" width="420" class="d-block" alt="...">
-    </div>
-    <div class="carousel-item">
-      <img src="./imagenes/tirami.jpg" width="395" class="d-block" alt="...">
-    </div>
-  </div>
-  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Previous</span>
-  </button>
-  <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
-    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Next</span>
-  </button>
-</div>
-</div>
-
-<div class="contenedor-cards">
-
-<!-- ================= TARJETA ================= -->
-<div class="card m-4" style="width: 18rem;">
-  <img src="./imagenes/compra.jpg" class="card-img" alt="...">
-  <div class="card-body">
-    <h5 class="card-title">TIRAMISU PASTELERO</h5>
-    <p class="card-text">Tiramisu Casero para darte un gusto!</p>
-    <a href="https://www.paulinecafe.com.ar/productos/torta-tiramisu/" target="_blank" class="btn btn-primary">Comprar</a>
-  </div>
-</div>
-
-<div class="card2" style="width: 18rem;">
-  <img src="./imagenes/venta.png" class="card-img" alt="...">
-  <div class="card-body">
-    <h5 class="card-title">POSTRE MENOR MEDIDA</h5>
-    <p class="card-text">Tiramisu en vasito!</p>
-    <a href="https://delvapasteleria.com.ar/productos/tiramisu/" target="_blank" class="btn btn-primary">Comprar</a>
-  </div>
-</div>
-
-<div class="card3" style="width: 18rem;">
-  <img src="./imagenes/card3.jpeg" class="card-img" alt="...">
-  <div class="card-body">
-    <h5 class="card-title">ALFAJOR</h5>
-    <p class="card-text">Tiramisu en forma de alfajor!</p>
-    <a href="https://esruiz.com.ar/tienda/producto/tiramisu-2/" target="_blank" class="btn btn-primary">Comprar</a>
-  </div>
-</div>
-</div>
-<!-- ================= NAV ================= -->
-<nav class="similares">
-    <a class="pagina" href="https://cookpad.com/ar/buscar/tiramisu%20facil" target="_blank">MAS RECETAS</a>
-    <a class="contactos" href="contactos.html">PAGINA DE CONTACTOS</a>
-
-    <div class="lista-recetas">
-        <p style="color:#613a2b; font-weight:bold;">DISTINTAS FORMAS</p>
-        <a href="https://recetasdecocina.elmundo.es/2020/04/tiramisu-casero-receta-tradicional-italiana.html" target="_blank">RECETA 100% ITALIANA</a>
-        <a href="https://www.laserenisima.com.ar/recetaslaserenisima/receta.php?receta=247-tiramisu-individual" target="_blank">RECETA MUY RAPIDA</a>
-    </div>
-</nav>
-
-
-<!-- ================= MAIN ================= -->
-<main class="contenido d-flex justify-content-center gap-4 p-3">
-
-<!-- ===== TEXTO ===== -->
-<section class="texto-receta" style="width:60%;">
-    <h3 style="color:#008000;">El tiramisú es un postre italiano famoso por su textura suave y su sabor a café y cacao.</h3>
-
-    <div class="rojito">
-        <h2>Ingredientes</h2>
-        <ul>
-            <li>500g de queso mascarpone</li>
-            <li>6 huevos medianos</li>
-            <li>150 g de azúcar</li>
-            <li>300 g de bizcochos savoiardi</li>
-            <li>150 ml de café espresso frío</li>
-            <li>4 cucharadas de licor (opcional)</li>
-            <li>15 g de cacao en polvo</li>
-        </ul>
-
-        <h2 class="rojo">Preparación</h2>
-
-        <h3 class="preparar">Preparar café</h3>
-        <ul>
-            <li class="hola">Preparar el café y dejarlo enfriar.</li>
-            <li class="hola">Agregar licor si se desea.</li>
-        </ul>
-
-        <h3 class="crema">Preparar crema de mascarpone</h3>
-        <ul>
-            <li>Separar yemas y claras.</li>
-            <li>Batir yemas con azúcar.</li>
-            <li>Agregar mascarpone.</li>
-            <li>Batir claras y sumar con movimientos envolventes.</li>
-        </ul>
-
-        <h3 class="Montar">Montar el Tiramisú</h3>
-        <ul>
-            <li>Remojar bizcochos en café.</li>
-            <li>Alternar capas de bizcochos y crema.</li>
-        </ul>
-
-        <h3 class="refrigerar">Refrigerar</h3>
-        <ul>
-            <li>Enfriar mínimo 4 horas.</li>
-            <li>Espolvorear cacao al servir.</li>
-        </ul>
-    </div>
-</section>
-
-<!-- ===== ASIDE ===== -->
-<aside class="lateral" style="width:30%; background:#fffdf7; padding:15px; border-radius:10px;">
-    <h3 class="titlevideo" style="color:#0000ff;">Video receta:</h3>
-
-    <iframe width="100%" height="220" src="https://www.youtube.com/embed/lVJhNGOtVI0?si=fX0h84smIJyRyoF" title="Tiramisu Receta" allowfullscreen></iframe>
-
-    <h3 class="postres" style="color:#0000ff;">Mapa del local:</h3>
-
-    <iframe
-        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3286.297042224447!2d-58.70965462562879!3d-34.54603377297499!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bccbda08b2bd9d%3A0x87f7dd38348f73ab!2sCoramelatte!5e0!3m2!1ses-419!2sar!4v1760468453589!5m2!1ses-419!2sar"
-        width="100%" height="250" allowfullscreen loading="lazy">
-    </iframe>
-</aside>
-
-</main>
-
-<!-- ================= FOOTER ================= -->
-<footer style="background:#ffe4c4; padding:20px; text-align:center;">
-  <h2 class="conocenos">¡Conocenos en nuestras redes!</h2>
-
-  <div class="footer-contenedor d-flex justify-content-center gap-5 flex-wrap mt-3">
-
-    <!-- Redes -->
-    <div class="footer-item">
-      <a href="https://www.tiktok.com/foryou" target="_blank"><img src="imagenes/tiktok.jpg" width="75"></a>
-      <a href="https://instagram.com" target="_blank"><img src="imagenes/instagram.jpg" width="85"></a>
-      <a href="https://youtube.com" target="_blank"><img src="imagenes/youtube.jpg" width="85"></a>
-    </div>
-
-    <!-- Mapa -->
-    <div class="footer-item">
-      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3286.297042224447!2d-58.70965462562879!3d-34.54603377297499!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bccbda08b2bd9d%3A0x87f7dd38348f73ab!2sCoramelatte!5e0!3m2!1ses-419!2sar!4v1760468453589!5m2!1ses-419!2sar"
-      width="200" height="150" style="border:0;" loading="lazy"></iframe>
-    </div>
-
-    <!-- Creador -->
-    <div class="footer-item">
-      <img src="imagenes/nose.png" width="120" alt="creador">
-      <p class="creador">Creado por <strong>Renzo Llanos</strong></p>
-    </div>
-
-    <button onclick="mostrar_datos_creador()" class="btn btn-info mt-3">
-    Datos del creador
-</button>
-
-
-  </div>
-</footer>
-
-<!-- WhatsApp flotante -->
-<div class="whatsapp-float" style="position:fixed; bottom:20px; right:20px;">
-    <a href="https://wa.me/541164329638" target="_blank">
-        <img src="imagenes/whatsapp.jpg" width="60" style="border-radius:50%;">
-    </a>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
