@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LSA - Traductor de Precisión 2 Manos</title>
+    <title>LSA - Intérprete de Palabras Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
 
     <style>
-        :root { --celeste: #72c3e4; --celeste-oscuro: #3a96bd; --blanco: #ffffff; }
+        :root { --celeste: #72c3e4; --celeste-oscuro: #3a96bd; --blanco: #ffffff; --rojo: #e74c3c; }
         body {
             font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #aedef4 0%, #72c3e4 100%);
@@ -25,18 +25,18 @@
             box-shadow: 5px 0 15px rgba(0,0,0,0.1); z-index: 10;
         }
 
-        .alphabet-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-            overflow-y: auto; padding-right: 5px; max-height: 50vh;
+        .vocab-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            overflow-y: auto; max-height: 45vh; padding-right: 5px;
         }
 
-        .btn-letter {
-            padding: 12px 5px; border: none; border-radius: 8px;
+        .btn-word {
+            padding: 15px 5px; border: none; border-radius: 10px;
             background: var(--celeste); color: white; font-weight: bold;
-            cursor: pointer; transition: 0.2s; font-size: 0.9rem;
+            cursor: pointer; transition: 0.2s; font-size: 0.8rem; text-transform: uppercase;
         }
 
-        .btn-letter.trained { border: 2px solid #2ecc71; background: #e8f8f0; color: #2ecc71; }
+        .btn-word.trained { border: 2px solid #2ecc71; background: #e8f8f0; color: #2ecc71; }
 
         .main-content {
             flex: 1; display: flex; flex-direction: column;
@@ -45,7 +45,7 @@
 
         .video-card {
             background: white; padding: 15px; border-radius: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative;
         }
 
         canvas { width: 100%; max-width: 640px; border-radius: 15px; transform: scaleX(-1); }
@@ -53,48 +53,44 @@
 
         .output-panel {
             width: 100%; max-width: 640px; background: white;
-            margin-top: 20px; padding: 25px; border-radius: 20px;
+            margin-top: 20px; padding: 20px; border-radius: 20px;
             text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
 
         #word-display {
-            font-size: 3rem; font-weight: 800; color: var(--celeste-oscuro);
-            min-height: 70px; border-bottom: 3px solid #eee; margin-bottom: 15px;
+            font-size: 3.5rem; font-weight: 800; color: var(--celeste-oscuro);
+            min-height: 80px; margin-bottom: 10px; text-transform: uppercase;
         }
 
         .btn-action {
-            padding: 12px 20px; border: none; border-radius: 25px;
+            padding: 10px 15px; border: none; border-radius: 20px;
             background: #34495e; color: white; cursor: pointer; font-weight: bold;
-            transition: 0.3s; font-size: 0.8rem;
+            font-size: 0.8rem;
         }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h2>Entrenamiento LSA</h2>
-        <div class="alphabet-grid" id="alphabet-grid"></div>
-        <hr>
-        <button class="btn-action" style="background: #e74c3c;" onclick="limpiarPalabra()">Borrar Palabra</button>
+        <h2>LSA Intérprete</h2>
+        <p style="font-size: 0.8rem; color: #7f8c8d;">Entrená conceptos completos:</p>
 
+        <div class="vocab-grid" id="vocab-grid"></div>
+
+        <hr>
         <div style="display: flex; gap: 5px;">
             <button class="btn-action" style="background: #3498db; flex: 1;" onclick="guardarModelo()">💾 Guardar</button>
             <button class="btn-action" style="background: #9b59b6; flex: 1;" onclick="cargarModelo()">📂 Cargar</button>
         </div>
-        <div style="margin-top: 15px; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 10px;">
-    <p style="font-size: 0.75rem; font-weight: bold; margin-bottom: 5px; color: #e74c3c;">Resetear Letras Rebeldes:</p>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;">
-        <button class="btn-action" style="background: #e67e22; padding: 5px;" onclick="limpiarLetraDificil('J')">J</button>
-        <button class="btn-action" style="background: #e67e22; padding: 5px;" onclick="limpiarLetraDificil('M')">M</button>
-        <button class="btn-action" style="background: #e67e22; padding: 5px;" onclick="limpiarLetraDificil('N')">N</button>
-        <button class="btn-action" style="background: #e67e22; padding: 5px;" onclick="limpiarLetraDificil('P')">P</button>
-        <button class="btn-action" style="background: #e67e22; padding: 5px;" onclick="limpiarLetraDificil('Z')">Z</button>
-        <button class="btn-action" style="background: #c0392b; padding: 5px;" onclick="limpiarTodasLasDificiles()">Toda</button>
-    </div>
-</div>
-        <input type="file" id="file-selector" style="display:none" onchange="importarArchivo(event)">
 
-        <p id="info-text" style="font-size: 0.85rem; font-weight: bold; color: #3a96bd;">Iniciando...</p>
+        <div style="background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 10px;">
+            <p style="font-size: 0.7rem; font-weight: bold; color: var(--rojo); margin-top:0;">RESETEAR SEÑA:</p>
+            <input type="text" id="delete-label" placeholder="Palabra a borrar" style="width: 80%; padding: 5px; margin-bottom: 5px;">
+            <button class="btn-action" style="background: var(--rojo); width: 100%;" onclick="limpiarEspecifica()">Borrar Ejemplos</button>
+        </div>
+
+        <p id="info-text" style="font-size: 0.85rem; font-weight: bold; color: #3a96bd;">Iniciando sistema...</p>
+        <input type="file" id="file-selector" style="display:none" onchange="importarArchivo(event)">
     </div>
 
     <div class="main-content">
@@ -104,230 +100,187 @@
         </div>
 
         <div class="output-panel">
-            <div id="word-display">...</div>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <span class="btn-action" style="background: #2ecc71;">👍 Pulgar para hablar</span>
-                <span class="btn-action" style="background: #9b59b6;" onclick="borrarUltimaLetra()">⬅ Borrar Letra</span>
-            </div>
+            <div id="word-display">ESPERANDO...</div>
+            <p style="color: #bdc3c7; font-size: 0.9rem;">Mantené la seña estable para que el traductor hable</p>
         </div>
     </div>
 
     <script>
-    const videoElement = document.getElementById('input_video');
-    const canvasElement = document.getElementById('output_canvas');
-    const canvasCtx = canvasElement.getContext('2d');
-    const wordDisplay = document.getElementById('word-display');
-    const infoText = document.getElementById('info-text');
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const wordDisplay = document.getElementById('word-display');
+        const infoText = document.getElementById('info-text');
 
-    let classifier;
-    let palabraConstruida = "";
-    let ultimaLetraDetectada = "";
-    let framesMismaLetra = 0;
-    let bloqueoEscritura = false;
-    let speakCooldown = false;
-    let currentLandmarks = null;
+        let classifier;
+        let ultimaPalabraDetectada = "";
+        let framesMismaPalabra = 0;
+        let bloqueoEscritura = false;
+        let currentLandmarks = null;
 
-    // Generar el abecedario
-    const alphabet = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
-    const grid = document.getElementById('alphabet-grid');
-    alphabet.forEach(letra => {
-        const btn = document.createElement('button');
-        btn.innerText = letra;
-        btn.className = 'btn-letter';
-        btn.onclick = () => entrenarLetra(letra, btn);
-        grid.appendChild(btn);
-    });
+        // --- VOCABULARIO ---
+        const vocabulario = ["HOLA", "GRACIAS", "COMO ESTAS", "AYUDA", "PERDON", "POR FAVOR", "BIEN", "MAL", "SI", "NO"];
+        const grid = document.getElementById('vocab-grid');
 
-    // Iniciar el clasificador
-    async function setupML() {
-        classifier = knnClassifier.create();
-        infoText.innerText = "IA Cargada. Esperando Cámara...";
-    }
+        vocabulario.forEach(palabra => {
+            const btn = document.createElement('button');
+            btn.innerText = palabra;
+            btn.className = 'btn-word';
+            btn.onclick = () => entrenarPalabra(palabra, btn);
+            grid.appendChild(btn);
+        });
 
-    function onResults(results) {
-        canvasElement.width = 640;
-        canvasElement.height = 480;
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, 640, 480);
-        canvasCtx.drawImage(results.image, 0, 0, 640, 480);
+        async function setupML() {
+            classifier = knnClassifier.create();
+            infoText.innerText = "IA de Palabras Lista.";
+        }
 
-        currentLandmarks = results.multiHandLandmarks;
+        function onResults(results) {
+            canvasElement.width = 640; canvasElement.height = 480;
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, 640, 480);
+            canvasCtx.drawImage(results.image, 0, 0, 640, 480);
 
-        if (currentLandmarks && currentLandmarks.length > 0) {
-            for (const landmarks of currentLandmarks) {
-                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#72c3e4', lineWidth: 4});
-                drawLandmarks(canvasCtx, landmarks, {color: '#ffffff', radius: 4});
+            currentLandmarks = results.multiHandLandmarks;
+
+            if (currentLandmarks && currentLandmarks.length > 0) {
+                for (const landmarks of currentLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#72c3e4', lineWidth: 4});
+                    drawLandmarks(canvasCtx, landmarks, {color: '#ffffff', radius: 4});
+                }
+                predecirPalabra(currentLandmarks);
             }
-            predecirSeña(currentLandmarks);
-            checkThumbGesture(currentLandmarks[0]);
+            canvasCtx.restore();
         }
-        canvasCtx.restore();
-    }
 
-    function getFeatures(multiLandmarks) {
-    let features = [];
-    for (let i = 0; i < 2; i++) {
-        if (multiLandmarks && multiLandmarks[i]) {
-            const lm = multiLandmarks[i];
-            const wrist = lm[0];
-            const middleBase = lm[9];
-            // Calculamos el tamaño de la mano para normalizar
-            const handSize = Math.sqrt(Math.pow(wrist.x - middleBase.x, 2) + Math.pow(wrist.y - middleBase.y, 2)) || 1;
+        function getFeatures(multiLandmarks) {
+            let features = [];
+            for (let i = 0; i < 2; i++) {
+                if (multiLandmarks && multiLandmarks[i]) {
+                    const lm = multiLandmarks[i];
+                    const wrist = lm[0];
+                    const middleBase = lm[9];
+                    const handSize = Math.sqrt(Math.pow(wrist.x - middleBase.x, 2) + Math.pow(wrist.y - middleBase.y, 2)) || 1;
 
-            features.push(...lm.flatMap(l => [
-                (l.x - wrist.x) / handSize,
-                (l.y - wrist.y) / handSize,
-                ((l.z - wrist.z) / handSize) * 2 // Exageramos el eje Z para ver profundidad
-            ]));
-        } else {
-            features.push(...Array(63).fill(0));
-        }
-    }
-    return features;
-}
-
-    function entrenarLetra(letra, btn) {
-        if (currentLandmarks) {
-            const features = getFeatures(currentLandmarks);
-            classifier.addExample(tf.tensor(features), letra);
-            btn.classList.add('trained');
-            infoText.innerText = `Entrenado ${letra}: ${classifier.getClassExampleCount()[letra]} ej.`;
-        } else {
-            infoText.innerText = "¡Poné la mano frente a la cámara!";
-        }
-    }
-
-    async function predecirSeña(multiLandmarks) {
-        if (classifier && classifier.getNumClasses() > 0 && !bloqueoEscritura) {
-            const features = getFeatures(multiLandmarks);
-            const result = await classifier.predictClass(tf.tensor(features));
-            const { label, confidences } = result;
-
-            if (confidences[label] > 0.75) {
-                if (label === ultimaLetraDetectada) {
-                    framesMismaLetra++;
+                    features.push(...lm.flatMap(l => [
+                        (l.x - wrist.x) / handSize,
+                        (l.y - wrist.y) / handSize,
+                        ((l.z - wrist.z) / handSize) * 2 // Profundidad aumentada
+                    ]));
                 } else {
-                    ultimaLetraDetectada = label;
-                    framesMismaLetra = 0;
+                    features.push(...Array(63).fill(0));
                 }
+            }
+            return features;
+        }
 
-                if (framesMismaLetra === 15) {
-                    palabraConstruida = (palabraConstruida === "..." || palabraConstruida === "Esperando...") ? label : palabraConstruida + label;
-                    wordDisplay.innerText = palabraConstruida;
-                    bloqueoEscritura = true;
-                    wordDisplay.style.color = "#2ecc71";
-                    setTimeout(() => {
-                        bloqueoEscritura = false;
-                        wordDisplay.style.color = "#3a96bd";
-                        framesMismaLetra = 0;
-                    }, 2000);
+        function entrenarPalabra(palabra, btn) {
+            if (currentLandmarks) {
+                const features = getFeatures(currentLandmarks);
+                classifier.addExample(tf.tensor(features), palabra);
+                btn.classList.add('trained');
+                infoText.innerText = `Entrenando ${palabra}: ${classifier.getClassExampleCount()[palabra]} capturas`;
+            }
+        }
+
+        async function predecirPalabra(multiLandmarks) {
+            if (classifier && classifier.getNumClasses() > 0 && !bloqueoEscritura) {
+                const features = getFeatures(multiLandmarks);
+                const result = await classifier.predictClass(tf.tensor(features));
+                const { label, confidences } = result;
+
+                // Umbral alto para evitar falsos positivos en palabras
+                if (confidences[label] > 0.94) {
+                    if (label === ultimaPalabraDetectada) {
+                        framesMismaPalabra++;
+                    } else {
+                        ultimaPalabraDetectada = label;
+                        framesMismaPalabra = 0;
+                    }
+
+                    // Si mantiene la seña estable por medio segundo (aprox 15 frames)
+                    if (framesMismaPalabra === 15) {
+                        ejecutarVoz(label);
+                    }
                 }
             }
         }
-    }
 
-    function checkThumbGesture(lm) {
-        if(!lm) return;
-        const thumbUp = lm[4].y < lm[3].y && lm[4].y < lm[2].y;
-        const fingersClosed = lm[8].y > lm[6].y && lm[12].y > lm[10].y;
-        if (thumbUp && fingersClosed && !speakCooldown && palabraConstruida.length > 0 && palabraConstruida !== "...") {
-            speakCooldown = true;
-            const msg = new SpeechSynthesisUtterance(palabraConstruida);
+        function ejecutarVoz(palabra) {
+            bloqueoEscritura = true;
+            wordDisplay.innerText = palabra;
+            wordDisplay.style.color = "#2ecc71";
+
+            const msg = new SpeechSynthesisUtterance(palabra);
             msg.lang = 'es-AR';
             window.speechSynthesis.speak(msg);
-            setTimeout(() => { speakCooldown = false; }, 4000);
+
+            // Bloqueamos para que no repita la misma palabra seguido
+            setTimeout(() => {
+                bloqueoEscritura = false;
+                wordDisplay.style.color = "#3a96bd";
+                framesMismaPalabra = 0;
+            }, 3000);
         }
-    }
 
-    function limpiarPalabra() { palabraConstruida = ""; wordDisplay.innerText = "..."; }
-
-    function borrarUltimaLetra() {
-        if (palabraConstruida.length > 0) {
-            palabraConstruida = palabraConstruida.slice(0, -1);
-            wordDisplay.innerText = palabraConstruida || "...";
-        }
-    }
-
-    // Funciones de limpieza
-    function limpiarLetraDificil(letra) {
-        if (classifier) {
-            try {
-                classifier.clearClass(letra);
-                const btn = Array.from(document.querySelectorAll('.btn-letter')).find(b => b.innerText === letra);
-                if (btn) btn.classList.remove('trained');
-                infoText.innerText = `Limpia la letra ${letra}.`;
-            } catch (e) { console.log(e); }
-        }
-    }
-
-    function limpiarTodasLasDificiles() {
-        ['J', 'M', 'N', 'P', 'Z'].forEach(l => limpiarLetraDificil(l));
-        infoText.innerText = "Letras rebeldes reseteadas.";
-    }
-
-    // Guardar y Cargar
-    function guardarModelo() {
-        const dataset = classifier.getClassifierDataset();
-        const datasetObj = {};
-        Object.keys(dataset).forEach((key) => {
-            datasetObj[key] = Array.from(dataset[key].dataSync());
-        });
-        const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = "modelo_lsa_pro.json";
-        a.click();
-    }
-
-    function cargarModelo() { document.getElementById('file-selector').click(); }
-
-    function importarArchivo(event) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const datasetObj = JSON.parse(e.target.result);
-            const tensorObj = {};
-            Object.keys(datasetObj).forEach((key) => {
-                tensorObj[key] = tf.tensor2d(datasetObj[key], [datasetObj[key].length / 126, 126]);
+        // --- GESTIÓN DE DATOS ---
+        function guardarModelo() {
+            const dataset = classifier.getClassifierDataset();
+            const datasetObj = {};
+            Object.keys(dataset).forEach((key) => {
+                datasetObj[key] = Array.from(dataset[key].dataSync());
             });
-            classifier.setClassifierDataset(tensorObj);
-            infoText.innerText = "¡Modelo Cargado!";
-            Object.keys(datasetObj).forEach(l => {
-                const btn = Array.from(document.querySelectorAll('.btn-letter')).find(b => b.innerText === l);
-                if(btn) btn.classList.add('trained');
-            });
-        };
-        reader.readAsText(event.target.files[0]);
-    }
+            const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = "interprete_lsa_pro.json";
+            a.click();
+        }
 
-    // --- INICIO DE CÁMARA Y HANDS ---
-    const hands = new Hands({
-        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-    });
+        function cargarModelo() { document.getElementById('file-selector').click(); }
 
-    hands.setOptions({
-        maxNumHands: 2,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7
-    });
+        function importarArchivo(event) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const datasetObj = JSON.parse(e.target.result);
+                const tensorObj = {};
+                Object.keys(datasetObj).forEach((key) => {
+                    tensorObj[key] = tf.tensor2d(datasetObj[key], [datasetObj[key].length / 126, 126]);
+                });
+                classifier.setClassifierDataset(tensorObj);
+                infoText.innerText = "Vocabulario cargado.";
+                // Marcar botones como entrenados
+                Object.keys(datasetObj).forEach(pal => {
+                    const btn = Array.from(document.querySelectorAll('.btn-word')).find(b => b.innerText === pal);
+                    if(btn) btn.classList.add('trained');
+                });
+            };
+            reader.readAsText(event.target.files[0]);
+        }
 
-    hands.onResults(onResults);
+        function limpiarEspecifica() {
+            const label = document.getElementById('delete-label').value.toUpperCase();
+            if(classifier && label) {
+                try {
+                    classifier.clearClass(label);
+                    const btn = Array.from(document.querySelectorAll('.btn-word')).find(b => b.innerText === label);
+                    if(btn) btn.classList.remove('trained');
+                    infoText.innerText = `Borrada seña: ${label}`;
+                } catch(e) { infoText.innerText = "No se encontró esa seña."; }
+            }
+        }
 
-    const camera = new Camera(videoElement, {
-        onFrame: async () => {
-            await hands.send({image: videoElement});
-        },
-        width: 640,
-        height: 480
-    });
+        // --- INICIO ---
+        const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75});
+        hands.onResults(onResults);
 
-    // Ejecución controlada
-    setupML().then(() => {
-        camera.start().catch(err => {
-            infoText.innerText = "Error: No se pudo abrir la cámara. Revisá los permisos.";
-            console.error(err);
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({image: videoElement}); },
+            width: 640, height: 480
         });
-    });
-</script>
+
+        setupML().then(() => camera.start());
+    </script>
 </body>
 </html>
